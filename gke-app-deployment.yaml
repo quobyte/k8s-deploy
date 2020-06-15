@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bb
+  labels:
+    app: bb
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+      - name: busybox
+        image: gcr.io/eda-eval/busybox:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /quobyte
+          name: quobyte-pvc
+      restartPolicy: Always
+      volumes:
+      - name: quobyte-pvc
+        persistentVolumeClaim:
+          claimName: quobyte-csi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: quobyte-csi
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: quobyte-rf3
