@@ -719,5 +719,18 @@ data:
   password: cXVvYnl0ZQ==
   # The user and password information is used to commuicate with Quobyte deployment thorugh API.
   # Your API credentials must have volume create and delete capabilities to use dynamic provisioning.
-
-
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quobyte-dns-udp
+  namespace: kube-system
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    k8s-app: kube-dns
+  ports:
+  - protocol: UDP
+    port: 53
+    targetPort: 10053
