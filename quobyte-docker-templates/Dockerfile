@@ -1,4 +1,5 @@
 FROM quay.io/quobyte/quobyte-server:2
+RUN yum install -y bind-utils
 ADD ./templates/RF3.cfg /RF3.cfg
 ADD ./templates/RF1.cfg /RF1.cfg
 ADD ./templates/EC42.cfg /EC42.cfg
