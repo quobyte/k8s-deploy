@@ -2,8 +2,19 @@
 # Set S3 Endpoint
 _S3=s3.quobyte.local
 
-MYNAME=$(dig +short ptr -x $(hostname -i) | sed 's/.$//')
+while true
+do
+  if [[ $(echo $(dig +short -x $(hostname -i)) | grep -c quobyte) == 0 ]]; then
+    sleep 1
+  else
+    break
+  fi
+done
+
+MYNAME=$(dig +short -x $(hostname -i) | sed 's/.$//')
 NODENUM=$(echo "$MYNAME" | tr -dc "0-9")
+
+echo $(dig +short $MYNAME)
 
 function replaceOrAddParam () {
     local config_file=$1
