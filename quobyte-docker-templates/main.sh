@@ -2,19 +2,9 @@
 # Set S3 Endpoint
 _S3=s3.quobyte.local
 
-while true
-do
-  if [[ $(echo $(dig +short -x $(hostname -i)) | grep -c quobyte) == 0 ]]; then
-    sleep 1
-  else
-    break
-  fi
-done
-
-MYNAME=$(dig +short -x $(hostname -i) | sed 's/.$//')
+MYNAME=$NODENAME
 NODENUM=$(echo "$MYNAME" | tr -dc "0-9")
 
-echo $(dig +short $MYNAME)
 
 function replaceOrAddParam () {
     local config_file=$1
@@ -40,7 +30,7 @@ mkdir -p /var/lib/quobyte/devices/metadata
 mkdir -p /var/lib/quobyte/devices/data0
 mkdir -p /var/lib/quobyte/devices/data1
 
-if [ "$MYNAME" == "quobyte-0.quobyte.default.svc.cluster.local" ];then
+if [ "$MYNAME" == "quobyte-0" ];then
     if [ -e /var/lib/quobyte/devices/registry/QUOBYTE_DEV_SETUP ];then 
         echo "registry exists"
     else

@@ -48,7 +48,7 @@ spec:
           - name: NODENAME
             valueFrom:
               fieldRef:
-                fieldPath: spec.nodeName
+                fieldPath: metadata.name
         ports:
         - containerPort: 7861
           name: quobyte
