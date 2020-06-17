@@ -40,7 +40,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
       - name: quobyte
-        image: gcr.io/eda-eval/quobyte-kubernetes-server:2.23.4-gke
+        image: gcr.io/eda-eval/quobyte-kubernetes-server:latest-gke
         imagePullPolicy: Always
         ports:
         - containerPort: 7861
