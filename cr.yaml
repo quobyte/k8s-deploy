@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: "2020-07-21T23:43:35Z"
+  name: external-dns
+  resourceVersion: "34923"
+  selfLink: /apis/rbac.authorization.k8s.io/v1/clusterrolebindings/external-dns
+  uid: 52be6afe-0683-442a-a233-b0e60a678ffd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: 261892361366-compute@developer.gserviceaccount.com
