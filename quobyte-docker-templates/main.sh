@@ -2,8 +2,8 @@
 # Set S3 Endpoint
 _S3=s3.quobyte.local
 
-echo "Wait 10 seconds for DNS records ..."
-sleep 10
+#echo "Wait 10 seconds for DNS records ..."
+#sleep 10
 
 MYNAME=$NODENAME
 NODENUM=$(echo "$MYNAME" | tr -dc "0-9")
@@ -122,7 +122,7 @@ do
   fi
 done
 
-export LIMIT_OPEN_FILES=100000
+export LIMIT_OPEN_FILES=1048576
 export LIMIT_MAX_PROCESSES=16384
 
 ulimit -n $LIMIT_OPEN_FILES
@@ -133,7 +133,6 @@ ulimit -u $LIMIT_MAX_PROCESSES
 #echo "Running Quobyte service $QUOBYTE_SERVICE $SERVICE_UUID in container"
 #echo "Service configuration:"
 #cat /etc/quobyte/$QUOBYTE_SERVICE.cfg
-
 for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
 do
 /usr/bin/quobyte-$QUOBYTE_SERVICE &
