@@ -263,6 +263,7 @@ spec:
             - "--provisioner=csi.quobyte.com"
             - "--csi-address=$(ADDRESS)"
             - "--v=3"
+            - "--timeout=5m"
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
