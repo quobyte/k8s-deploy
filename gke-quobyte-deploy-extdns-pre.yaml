@@ -106,7 +106,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: quobyte
-        image: gcr.io/eda-eval/quobyte-server:3.0.pre2
+        image: gcr.io/eda-eval/quobyte-server:3.0.pre4
         imagePullPolicy: Always
         env:
           - name: NODENAME
@@ -214,7 +214,7 @@ spec:
     spec:
       containers:
       - name: quobyte-client-csi
-        image: gcr.io/eda-eval/quobyte-client:3.0.pre2
+        image: gcr.io/eda-eval/quobyte-client:3.0.pre4
         imagePullPolicy: Always
         env:
           - name: QUOBYTE_CLIENT_LOG_LEVEL

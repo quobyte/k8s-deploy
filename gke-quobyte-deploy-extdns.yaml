@@ -73,7 +73,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: quobyte
-        image: gcr.io/eda-eval/quobyte-kubernetes-server:latest-gke
+        image: gcr.io/eda-eval/quobyte-server:3.0.pre3
         imagePullPolicy: Always
         env:
           - name: NODENAME
@@ -181,7 +181,7 @@ spec:
     spec:
       containers:
       - name: quobyte-client-csi
-        image: quay.io/quobyte/quobyte-client:2
+        image: gcr.io/eda-eval/quobyte-client:3.0.pre3
         imagePullPolicy: Always
         env:
           - name: QUOBYTE_CLIENT_LOG_LEVEL
@@ -227,7 +227,7 @@ spec:
               # set the mount point immutable. As long as mount.quobyte does not run,
               # other processes cannot write data to this dir.
               /usr/bin/mount.quobyte --hostname ${NODENAME} \
-                --allow-usermapping-in-volumename --http-port 55000 -f \
+                --http-port 55000 -f \
                 -d ${QUOBYTE_CLIENT_LOG_LEVEL} -l /dev/stdout ${OPTS} \
                 --minidump-path /tmp/minidumps --allow-minidump-upload \
                 ${QUOBYTE_REGISTRY}/ ${QUOBYTE_MOUNT_POINT}
@@ -586,6 +586,7 @@ spec:
             - "--v=3"
             - "--csi-address=$(ADDRESS)"
             - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
+            - "--timeout=5m"
           lifecycle:
             preStop:
               exec:

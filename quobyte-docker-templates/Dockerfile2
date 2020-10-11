@@ -1,4 +1,4 @@
-FROM quobyte-server:3.0.pre2
+FROM quobyte-server:3.0.pre4
 RUN yum install -y bind-utils
 ADD ./templates/RF3.cfg /RF3.cfg
 ADD ./templates/RF1.cfg /RF1.cfg

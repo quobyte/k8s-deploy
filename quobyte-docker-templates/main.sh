@@ -6,6 +6,7 @@ _S3=s3.quobyte.local
 #sleep 10
 
 MYNAME=$NODENAME
+STRIPPEDNAME=$(echo "$MYNAME" | tr -dc "a-z-")
 NODENUM=$(echo "$MYNAME" | tr -dc "0-9")
 
 
@@ -24,52 +25,56 @@ function replaceOrAddParam () {
 
 
 uname -a
-
-if [[ $NODENUM < 5 ]]; then
-mkdir -p /var/lib/quobyte/devices/registry
-    fi
- 
-mkdir -p /var/lib/quobyte/devices/metadata
-mkdir -p /var/lib/quobyte/devices/data0
-mkdir -p /var/lib/quobyte/devices/data1
-
-if [ "$MYNAME" == "quobyte-0" ];then
+# This should not be necessary because of voluem mounts
+#
+#if [[ $NODENUM < 5 ]]; then
+#mkdir -p /var/lib/quobyte/devices/registry
+#fi
+# 
+#mkdir -p /var/lib/quobyte/devices/metadata
+#mkdir -p /var/lib/quobyte/devices/data0
+#mkdir -p /var/lib/quobyte/devices/data1
+#
+if [ "$MYNAME" == "quobyte-reg-0" ];then
     if [ -e /var/lib/quobyte/devices/registry/QUOBYTE_DEV_SETUP ];then 
         echo "registry exists"
     else
         /usr/bin/qbootstrap -y -d /var/lib/quobyte/devices/registry
     fi
 else
-    if [ -e /var/lib/quobyte/devices/registry/QUOBYTE_DEV_SETUP ];then 
-        echo "registry exists"
-    elif 
-        [[ $NODENUM < 5 ]]; then
-        /usr/bin/qmkdev -d -t REGISTRY /var/lib/quobyte/devices/registry
+    if [ "$STRIPPEDNAME" == "quobyte-reg-" ];then
+        if [ -e /var/lib/quobyte/devices/registry/QUOBYTE_DEV_SETUP ];then 
+            echo "registry exists"
+        elif 
+            [[ $NODENUM < 5 ]]; then
+            /usr/bin/qmkdev -d -t REGISTRY /var/lib/quobyte/devices/registry
+        fi
     fi
 fi
 
-if [ -e /var/lib/quobyte/devices/metadata/QUOBYTE_DEV_SETUP ];then 
-    echo "metadata exists"
-else
-    /usr/bin/qmkdev -d -t METADATA /var/lib/quobyte/devices/metadata
+if [ "$STRIPPEDNAME" == "quobyte-meta-" ];then
+    if [ -e /var/lib/quobyte/devices/metadata/QUOBYTE_DEV_SETUP ];then 
+        echo "metadata exists"
+    else
+        /usr/bin/qmkdev -d -t METADATA /var/lib/quobyte/devices/metadata
+    fi
 fi
 
-if [ -e /var/lib/quobyte/devices/data0/QUOBYTE_DEV_SETUP ];then 
-    echo "data exists"
-else
-    /usr/bin/qmkdev -d -t DATA /var/lib/quobyte/devices/data0
-fi
-
-if [ -e /var/lib/quobyte/devices/data1/QUOBYTE_DEV_SETUP ];then
-    echo "data exists"
-else
-    /usr/bin/qmkdev -d -t DATA /var/lib/quobyte/devices/data1
+if [ "$STRIPPEDNAME" == "quobyte-data-" ];then
+    for i in $(basename $(ls -d /var/lib/quobyte/devices/data*))
+    do
+    if [ -e /var/lib/quobyte/devices/${i}/QUOBYTE_DEV_SETUP ];then 
+        echo "data exists"
+    else
+        /usr/bin/qmkdev -d -t DATA /var/lib/quobyte/devices/${i}
+    fi
+    done
 fi
 
 
 QUOBYTE_WEBCONSOLE_PORT=8080
 
-echo "registry=quobyte-0.quobyte.default.svc.cluster.local,quobyte-1.quobyte.default.svc.cluster.local,quobyte-2.quobyte.default.svc.cluster.local,quobyte-3.quobyte.default.svc.cluster.local" > /etc/quobyte/host.cfg
+echo "registry=quobyte-reg-0.quobyte.default.svc.cluster.local,quobyte-reg-1.quobyte.default.svc.cluster.local,quobyte-reg-2.quobyte.default.svc.cluster.local,quobyte-reg-3.quobyte.default.svc.cluster.local" > /etc/quobyte/host.cfg
 #echo "hostname_override=$MYNAME" >> /etc/quobyte/data.cfg
 #echo "hostname_override=$MYNAME" >> /etc/quobyte/metadata.cfg
 #echo "hostname_override=$MYNAME" >> /etc/quobyte/api.cfg
@@ -109,8 +114,8 @@ if [ -n "$QUOBYTE_MIN_MEM_S3" ]; then replaceOrAddParam "/etc/default/quobyte" "
 
 echo "constants.webconsole.setup_wizard.enable=false" >> /etc/quobyte/webconsole.cfg
 
-for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
-do
+#for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
+#do
   echo test.device_dir=/var/lib/quobyte/devices >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
   echo logging.file_name= >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
   echo logging.stdout=true >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
@@ -120,7 +125,7 @@ do
     SERVICE_UUID=$(uuidgen)
     echo uuid=$SERVICE_UUID >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
   fi
-done
+#done
 
 export LIMIT_OPEN_FILES=1048576
 export LIMIT_MAX_PROCESSES=16384
@@ -133,31 +138,32 @@ ulimit -u $LIMIT_MAX_PROCESSES
 #echo "Running Quobyte service $QUOBYTE_SERVICE $SERVICE_UUID in container"
 #echo "Service configuration:"
 #cat /etc/quobyte/$QUOBYTE_SERVICE.cfg
-for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
-do
-/usr/bin/quobyte-$QUOBYTE_SERVICE &
-done
-/usr/bin/qmgmt -r user login admin quobyte
-while [[ $(/usr/bin/qmgmt device list | grep -c "not registered") != 0 ]]
-do 
-  echo "Waiting for devices to be registered"
-  sleep 1
-done
+#for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
+#do
+/usr/bin/quobyte-$QUOBYTE_SERVICE 
+#done
+if [ "$MYNAME" == "quobyte-reg-0" ];then
+  /usr/bin/qmgmt -r user login admin quobyte
+  while [[ $(/usr/bin/qmgmt device list | grep -c "not registered") != 0 ]]
+  do 
+    echo "Waiting for devices to be registered"
+    sleep 1
+  done
 
-/usr/bin/qmgmt volume config import RF1 /RF1.cfg
-/usr/bin/qmgmt volume config import RF3 /RF3.cfg
-/usr/bin/qmgmt volume config import EC42 /EC42.cfg
-/usr/bin/qmgmt volume config import S3-objects /S3-objects.cfg
+  /usr/bin/qmgmt volume config import RF1 /RF1.cfg
+  /usr/bin/qmgmt volume config import RF3 /RF3.cfg
+  /usr/bin/qmgmt volume config import EC42 /EC42.cfg
+  /usr/bin/qmgmt volume config import S3-objects /S3-objects.cfg
 
-/usr/bin/qmgmt volume create vol-RF1 root root RF1
-/usr/bin/qmgmt volume create vol-RF3 root root RF3
-/usr/bin/qmgmt volume create vol-EC42 root root EC42
-/usr/bin/qmgmt volume create "S3 Objects" root root S3-objects
+  /usr/bin/qmgmt volume create vol-RF1 root root RF1
+  /usr/bin/qmgmt volume create vol-RF3 root root RF3
+  /usr/bin/qmgmt volume create vol-EC42 root root EC42
+  /usr/bin/qmgmt volume create "S3 Objects" root root S3-objects
 
-sed -i "s/__S3__/${_S3}/g" /system.cfg
-/usr/bin/qmgmt systemconfig import /system.cfg
-pkill -9 /usr/bin/quobyte-s3 && /usr/bin/quobyte-s3
+  sed -i "s/__S3__/${_S3}/g" /system.cfg
+  /usr/bin/qmgmt systemconfig import /system.cfg
+#pkill -9 /usr/bin/quobyte-s3 && /usr/bin/quobyte-s3
 
 rm -f /*.cfg
-
-tail -f /var/log/lastlog
+fi
+#tail -f /var/log/lastlog

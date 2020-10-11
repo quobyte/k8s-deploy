@@ -1,0 +1,469 @@
+{{- if .Values.externaldns.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.externaldns.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.externaldns.name }}
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions"] 
+  resources: ["ingresses"] 
+  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.externaldns.name }}-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.externaldns.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.externaldns.name }}
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.externaldns.name }}
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Values.externaldns.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.externaldns.name }}
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: {{ .Values.externaldns.name }}
+        image: {{ .Values.externaldns.image }}
+        args:
+        - --source=service
+        - --domain-filter={{ .Values.externaldns.domainfilter }}
+        - --provider={{ .Values.externaldns.provider }}
+        - --registry=txt
+        - --log-level={{ .Values.externaldns.loglevel }}
+{{- end }}
+---
+# Please use SSDs in order to get reasonable performance in GKE
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: faster
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+---
+# This is a headless service in order to get svc entries in kube-dns
+apiVersion: v1
+kind: Service
+metadata:
+  name: quobyte
+{{- if .Values.externaldns.enabled }}
+  annotations:
+     external-dns.alpha.kubernetes.io/hostname: {{ .Values.externaldns.annotation }}
+{{- end }}
+  labels:
+    app: quobyte
+spec:
+  ports:
+  - port: 7861
+    name: "quobyte"
+    protocol: "TCP"
+    targetPort: 7861
+  clusterIP: None
+  selector:
+    app: quobyte-reg
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-reg
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-reg # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-reg # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte-reg
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: registry
+        ports:
+        - containerPort: 7861
+          name: quobyte-reg
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+          - name: registry
+            mountPath: /var/lib/quobyte/devices/registry
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+  - metadata:
+      name: registry
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "faster"
+      resources:
+        requests:
+          storage: 25Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-api
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-api # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-api # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte-api
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: api
+        ports:
+        - containerPort: 7860
+          name: quobyteapi
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-meta
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-meta # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-meta # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: metadata
+        ports:
+        - containerPort: 7862
+          name: quobyte-meta
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+          - name: metadata
+            mountPath: /var/lib/quobyte/devices/metadata
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+  - metadata:
+      name: metadata
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "faster"
+      resources:
+        requests:
+          storage: 100Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-data
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-data # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-data # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte-data
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: data
+        ports:
+        - containerPort: 7863
+          name: quobyte-data
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+          {{- range .Values.quobyte.datadisks }}
+          - name: {{ .name }}
+            mountPath: {{ .mountpoint }}
+          {{- end }}
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+{{- range .Values.quobyte.datadisks }}
+  - metadata:
+      name: {{ .name }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "faster"
+      resources:
+        requests:
+          storage: 840Gi
+{{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-s3
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-s3 # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-s3 # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte-s3
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: s3
+        ports:
+        - containerPort: 80
+          name: quobyte-s3
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quobyte-web
+spec:
+  selector:
+    matchLabels:
+      app: quobyte-web # has to match .spec.template.metadata.labels
+  serviceName: "quobyte"
+  replicas: 4 # by default is 4 
+  template:
+    metadata:
+      labels:
+        app: quobyte-web # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: quobyte-web
+        image: {{ .Values.quobyte.image }}
+        imagePullPolicy: Always
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: QUOBYTE_SERVICE
+            value: webconsole
+        ports:
+        - containerPort: 80
+          name: quobyte-web
+        volumeMounts:
+          - name: config
+            mountPath: /etc/quobyte
+      affinity:
+        podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - quobyte
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quobyte-webconsole
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    statefulset.kubernetes.io/pod-name: quobyte-web-0
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+
