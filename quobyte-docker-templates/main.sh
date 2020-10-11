@@ -2,9 +2,6 @@
 # Set S3 Endpoint
 _S3=s3.quobyte.local
 
-#echo "Wait 10 seconds for DNS records ..."
-#sleep 10
-
 MYNAME=$NODENAME
 STRIPPEDNAME=$(echo "$MYNAME" | tr -dc "a-z-")
 NODENUM=$(echo "$MYNAME" | tr -dc "0-9")
@@ -25,16 +22,7 @@ function replaceOrAddParam () {
 
 
 uname -a
-# This should not be necessary because of voluem mounts
-#
-#if [[ $NODENUM < 5 ]]; then
-#mkdir -p /var/lib/quobyte/devices/registry
-#fi
-# 
-#mkdir -p /var/lib/quobyte/devices/metadata
-#mkdir -p /var/lib/quobyte/devices/data0
-#mkdir -p /var/lib/quobyte/devices/data1
-#
+
 if [ "$MYNAME" == "quobyte-reg-0" ];then
     if [ -e /var/lib/quobyte/devices/registry/QUOBYTE_DEV_SETUP ];then 
         echo "registry exists"
@@ -71,16 +59,13 @@ if [ "$STRIPPEDNAME" == "quobyte-data-" ];then
     done
 fi
 
+if [ "$STRIPPEDNAME" == "quobyte-web-" ];then
+    echo "constants.webconsole.setup_wizard.enable=false" > /etc/quobyte/webconsole.cfg
+fi
 
 QUOBYTE_WEBCONSOLE_PORT=8080
 
-echo "registry=quobyte-reg-0.quobyte.default.svc.cluster.local,quobyte-reg-1.quobyte.default.svc.cluster.local,quobyte-reg-2.quobyte.default.svc.cluster.local,quobyte-reg-3.quobyte.default.svc.cluster.local" > /etc/quobyte/host.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/data.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/metadata.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/api.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/registry.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/s3.cfg
-#echo "hostname_override=$MYNAME" >> /etc/quobyte/webconsole.cfg
+echo "registry=quobyte-reg-0.quobyte.${CLUSTER_NS}.svc.cluster.local,quobyte-reg-1.quobyte.${CLUSTER_NS}.svc.cluster.local,quobyte-reg-2.quobyte.${CLUSTER_NS}.svc.cluster.local,quobyte-reg-3.quobyte.${CLUSTER_NS}.svc.cluster.local" > /etc/quobyte/host.cfg
 
 if [ -n "$QUOBYTE_RPC_PORT" ]; then echo rpc.port=$QUOBYTE_RPC_PORT > /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
 if [ -n "$QUOBYTE_HTTP_PORT" ]; then echo http.port=$QUOBYTE_HTTP_PORT >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
@@ -107,41 +92,29 @@ if [ -n "$QUOBYTE_MIN_MEM_API" ]; then replaceOrAddParam "/etc/default/quobyte" 
 if [ -n "$QUOBYTE_MIN_MEM_WEBCONSOLE" ]; then replaceOrAddParam "/etc/default/quobyte" "MIN_MEM_WEBCONSOLE" "$QUOBYTE_MIN_MEM_WEBCONSOLE"; fi
 if [ -n "$QUOBYTE_MIN_MEM_S3" ]; then replaceOrAddParam "/etc/default/quobyte" "MIN_MEM_S3" "$QUOBYTE_MIN_MEM_S3"; fi
 
-#grep -q "/devices" /proc/mounts
-#if [ $? -ne 0 ]; then
-#  echo test.device_dir=/devices >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
-#fi
+touch /etc/quobyte/$QUOBYTE_SERVICE.cfg
 
-echo "constants.webconsole.setup_wizard.enable=false" >> /etc/quobyte/webconsole.cfg
-
-#for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
-#do
+SERVICE_UUID=$(grep "^ *uuid" "/etc/quobyte/$QUOBYTE_SERVICE.cfg" | awk -F = '{print $2}')
+if [[ -z $SERVICE_UUID ]]; then
+  SERVICE_UUID=$(uuidgen)
   echo test.device_dir=/var/lib/quobyte/devices >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
   echo logging.file_name= >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
   echo logging.stdout=true >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
+  echo uuid=$SERVICE_UUID >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
+fi
 
-  SERVICE_UUID=$(grep "^ *uuid" "/etc/quobyte/$QUOBYTE_SERVICE.cfg" | awk -F = '{print $2}')
-  if [[ -z $SERVICE_UUID ]]; then
-    SERVICE_UUID=$(uuidgen)
-    echo uuid=$SERVICE_UUID >> /etc/quobyte/$QUOBYTE_SERVICE.cfg
-  fi
-#done
-
-export LIMIT_OPEN_FILES=1048576
-export LIMIT_MAX_PROCESSES=16384
+# The limits are passed by helm to the yaml file
+#export LIMIT_OPEN_FILES=1048576
+#export LIMIT_MAX_PROCESSES=16384
 
 ulimit -n $LIMIT_OPEN_FILES
 # Maximize the virtual memory limit to make sure that Java can set the MaxHeapSize (-Xmx) correctly.
 ulimit -v unlimited
 ulimit -u $LIMIT_MAX_PROCESSES
 
-#echo "Running Quobyte service $QUOBYTE_SERVICE $SERVICE_UUID in container"
-#echo "Service configuration:"
-#cat /etc/quobyte/$QUOBYTE_SERVICE.cfg
-#for QUOBYTE_SERVICE in $QUOBYTE_SERVICES
-#do
-/usr/bin/quobyte-$QUOBYTE_SERVICE 
-#done
+# The service is defined for the container in the yaml file
+/usr/bin/quobyte-$QUOBYTE_SERVICE &
+
 if [ "$MYNAME" == "quobyte-reg-0" ];then
   /usr/bin/qmgmt -r user login admin quobyte
   while [[ $(/usr/bin/qmgmt device list | grep -c "not registered") != 0 ]]
@@ -162,8 +135,6 @@ if [ "$MYNAME" == "quobyte-reg-0" ];then
 
   sed -i "s/__S3__/${_S3}/g" /system.cfg
   /usr/bin/qmgmt systemconfig import /system.cfg
-#pkill -9 /usr/bin/quobyte-s3 && /usr/bin/quobyte-s3
-
-rm -f /*.cfg
+  rm -f /*.cfg
 fi
-#tail -f /var/log/lastlog
+wait

@@ -118,6 +118,12 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: registry
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
         - containerPort: 7861
           name: quobyte-reg
@@ -183,6 +189,12 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: api
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
         - containerPort: 7860
           name: quobyteapi
@@ -238,6 +250,12 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: metadata
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
         - containerPort: 7862
           name: quobyte-meta
@@ -303,6 +321,12 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: data
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
         - containerPort: 7863
           name: quobyte-data
@@ -343,6 +367,7 @@ spec:
           storage: 840Gi
 {{- end }}
 ---
+{{- if .Values.quobyte.s3.enabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -372,6 +397,12 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: s3
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
         - containerPort: 80
           name: quobyte-s3
@@ -398,6 +429,7 @@ spec:
         requests:
           storage: 10Gi
 ---
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -427,8 +459,14 @@ spec:
                 fieldPath: metadata.name
           - name: QUOBYTE_SERVICE
             value: webconsole
+          - name: CLUSTER_NS
+            value: {{ .Release.Namespace }}
+          - name: LIMIT_OPEN_FILES
+            value: "{{ .Values.quobyte.maxopenfiles }}"
+          - name: LIMIT_MAX_PROCESSES
+            value: "{{ .Values.quobyte.maxprocs }}"
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: quobyte-web
         volumeMounts:
           - name: config
