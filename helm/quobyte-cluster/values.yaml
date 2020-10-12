@@ -19,7 +19,7 @@ externaldns:
 # On GKE data devices should be at least 840Gi to get the best iops performance.
 # This is our default and minimum requirement
 quobyte:
-  image: gcr.io/eda-eval/quobyte-server:3.0.pre4
+  image: gcr.io/eda-eval/quobyte-server:3.0.pre5
   maxopenfiles: 1048576
   maxprocs: 16384
   datadisks:
