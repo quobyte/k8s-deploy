@@ -116,6 +116,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: registry
           - name: CLUSTER_NS
@@ -187,6 +191,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: api
           - name: CLUSTER_NS
@@ -248,6 +256,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: metadata
           - name: CLUSTER_NS
@@ -319,6 +331,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: data
           - name: CLUSTER_NS
@@ -395,6 +411,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: s3
           - name: CLUSTER_NS
@@ -457,6 +477,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: QUOBYTE_SERVICE
             value: webconsole
           - name: CLUSTER_NS

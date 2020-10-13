@@ -93,6 +93,7 @@ if [ -n "$QUOBYTE_MIN_MEM_WEBCONSOLE" ]; then replaceOrAddParam "/etc/default/qu
 if [ -n "$QUOBYTE_MIN_MEM_S3" ]; then replaceOrAddParam "/etc/default/quobyte" "MIN_MEM_S3" "$QUOBYTE_MIN_MEM_S3"; fi
 
 touch /etc/quobyte/$QUOBYTE_SERVICE.cfg
+sed -i -n -e '/^public_ip=/!p' -e "\$apublic_ip=$MY_POD_IP" /etc/quobyte/$QUOBYTE_SERVICE.cfg
 
 SERVICE_UUID=$(grep "^ *uuid" "/etc/quobyte/$QUOBYTE_SERVICE.cfg" | awk -F = '{print $2}')
 if [[ -z $SERVICE_UUID ]]; then
