@@ -83,7 +83,9 @@ if [ -n "$QUOBYTE_API_PORT" ]; then echo api.port=$QUOBYTE_API_PORT >> /etc/quob
 if [ -n "$QUOBYTE_S3_HOSTNAME" ]; then echo s3.hostname=$QUOBYTE_S3_HOSTNAME >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
 if [ -n "$QUOBYTE_S3_PORT" ]; then echo s3.port=$QUOBYTE_S3_PORT >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
 if [ -n "$QUOBYTE_S3_SECURE_PORT" ]; then echo s3.secure.port=$QUOBYTE_S3_SECURE_PORT >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
-if [ -n "$QUOBYTE_WEBCONSOLE_PORT" ]; then echo webconsole.port=$QUOBYTE_WEBCONSOLE_PORT >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
+if [ "$QUOBYTE_SERVICE" == "webconsole" ]; then
+  if [ -n "$QUOBYTE_WEBCONSOLE_PORT" ]; then echo webconsole.port=$QUOBYTE_WEBCONSOLE_PORT >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
+fi
 if [ -n "$QUOBYTE_EXTRA_SERVICE_CONFIG" ]; then echo $QUOBYTE_EXTRA_SERVICE_CONFIG >> /etc/quobyte/$QUOBYTE_SERVICE.cfg; fi
 if [ -n "$QUOBYTE_DEBUG_PORT" ]; then echo REMOTE_DEBUGGING_PORT=$QUOBYTE_DEBUG_PORT >> /etc/default/quobyte; fi
 if [ -n "$QUOBYTE_ENABLE_ASSERTIONS" ]; then echo ENABLE_ASSERTIONS=$QUOBYTE_ENABLE_ASSERTIONS >> /etc/default/quobyte; fi
